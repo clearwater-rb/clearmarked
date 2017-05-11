@@ -30,7 +30,10 @@ module Clearmarked
 
     def initialize
       # Block elements
-      @heading = proc { |text, level| tag("h#{level}", nil, text) }
+      @heading = proc do |text, level|
+        id = text_for(text)
+        tag("h#{level}", { id: id }, text)
+      end
       @code = proc { |code, lang| pre(code({ lang: lang }, code)) }
       @list = proc { |content, ordered| tag(ordered ? :ol : :ul, nil, content) }
       @listitem = proc { |content| li(content) }
@@ -77,6 +80,28 @@ module Clearmarked
       @image = proc do |src, title, alt|
         img({ src: src, title: title, alt: alt }
               .select { |_, v| v })
+      end
+    end
+
+    def text_for text
+      case `typeof #{text}`
+      when :string, :number
+        text.to_s
+      when :object
+        if `!!#{text}.$$class`
+          case text
+          when Array
+            text.map { |t| text_for t }.join
+          else
+            text.to_s
+          end
+        elsif `!!#{text}.children`
+          text_for `#{text}.children`
+        elsif `!!#{text}.text`
+          text_for `#{text}.text`
+        elsif `#{text} instanceof Array`
+          text.map { |t| text_for t }.join
+        end
       end
     end
   end
